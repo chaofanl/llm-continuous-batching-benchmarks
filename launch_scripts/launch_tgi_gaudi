@@ -33,17 +33,16 @@ fi
 #     --port $PORT \
 #     --shard-uds-path /tmp/text-generation-server.2 \
 #     --max-concurrent-requests 2000
-
 TEXT_GENERATION_SERVER_IGNORE_EOS_TOKEN=true \
 text-generation-launcher \
     --model-id $model_name \
     --sharded false  \
     --huggingface-hub-cache /data/cache \
-    --max-input-length 128 \
-    --max-total-tokens 1152 \
-    --max-batch-total-tokens $max_batch_total_tokens \
-    --max-waiting-tokens 7 \
+    --max-input-length ${max_input} \
+    --max-total-tokens ${max_total} \
+    --max-batch-total-tokens ${max_batch_total_tokens} \
+    --max-waiting-tokens 20 \
+    --max-batch-prefill-tokens 2048 \
     --waiting-served-ratio 1.2 \
-    --port $PORT \
+    --port 80 \
     --shard-uds-path /tmp/text-generation-server.2 \
-    --max-concurrent-requests 32

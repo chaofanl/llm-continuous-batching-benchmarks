@@ -16,9 +16,8 @@ import sys
 import time
 import numpy as np
 
-np.random.seed(10)
+np.random.seed(17)
 # Define the maximum number of concurrent tasks
-max_num_threads = 32
 
 def get_wait_time(mean_time_between_requests: float, distribution: str) -> float:
     if distribution == "uniform":
@@ -309,11 +308,11 @@ def calculate_throughput(queries, dur_s, backend, tokenizer, median_token_latenc
 
     throughput_tok_s = (prompt_token_count + response_token_count) / dur_s
     # print(f'throughput_tok_s {throughput_tok_s:.02f}')
-
+    decode_tkn_s = response_token_count / dur_s
     qps = len(responses) / dur_s
 
     with open(results_filename, 'a') as f:
-        msg = f'backend {backend} dur_s {dur_s:.02f} tokens_per_s {throughput_tok_s:.02f} qps {qps:.02f} successful_responses {len(responses)} prompt_token_count {prompt_token_count} response_token_count {response_token_count}, {median_token_latency=}, {median_e2e_latency=}'
+        msg = f'backend {backend} dur_s {dur_s:.02f} tokens_per_s {throughput_tok_s:.02f} decode_tkn_s {decode_tkn_s:.02f} qps {qps:.02f} successful_responses {len(responses)} prompt_token_count {prompt_token_count} response_token_count {response_token_count}, {median_token_latency=}, {median_e2e_latency=}'
         if log_latencies:
             msg += f' {all_e2e_latencies=} {all_per_token_latencies=}'
         print(msg, file=f)
@@ -374,6 +373,7 @@ async def benchmark(
     qps: float,
     log_latencies: bool,
     fail_on_response_failure: bool,
+    max_num_threads: int,
 ):
 
     if backend == GenerationBackend.vLLM:
@@ -388,6 +388,7 @@ async def benchmark(
         query_model = query_model_ft
     else:
         raise ValueError(f'unknown backend {backend}')
+    print("max_num_threads ", max_num_threads)
     semaphore = asyncio.Semaphore(max_num_threads)
     m = MeasureLatency()
 
@@ -412,8 +413,8 @@ async def benchmark(
     start_time = time.time()
     tasks = []
     async for prompt in async_prompts:
-        # tasks.append(asyncio.create_task(query_model_with_semaphore(
-        tasks.append(asyncio.create_task(query_model(
+        tasks.append(asyncio.create_task(query_model_with_semaphore(
+        # tasks.append(asyncio.create_task(query_model(
             prompt, verbose, tokenizer, allow_variable_generation_length, total_requests, port)))
     queries = await asyncio.gather(*tasks)
     dur_s = time.time() - start_time
@@ -533,7 +534,7 @@ def main():
                         choices=[e.name for e in GenerationBackend], required=True)
     parser.add_argument('--results_filename', type=str, default='log')
     parser.add_argument('--port', type=int, required=True)
-
+    parser.add_argument('--max_num_threads', type=int)
     parser.add_argument('--random_prompt_lens_mean', type=int)
     parser.add_argument('--random_prompt_lens_range', type=int)
     parser.add_argument('--random_prompt_count', type=int)
@@ -566,7 +567,6 @@ def main():
                         action='store_true')
 
     args = parser.parse_args()
-
     if args.gen_random_prompts:
         assert args.random_prompt_count is not None
 
@@ -599,9 +599,9 @@ def main():
 
     for i, (prompt_len, gen_len) in enumerate(zip(prompt_lens, response_lens)):
         total = prompt_len + gen_len
-        if total > 2048:
-            print(f'truncating long prompt+gen_len {prompt_len=} {gen_len=}')
-            gen_len = 2048 - prompt_len
+        # if total > 2048:
+        #     print(f'truncating long prompt+gen_len {prompt_len=} {gen_len=}')
+        #     gen_len = 2048 - prompt_len
         response_lens[i] = gen_len
 
     if args.print_generation_lens_and_exit:
@@ -634,6 +634,7 @@ def main():
         args.qps,
         args.log_latencies,
         args.fail_on_response_failure,
+        args.max_num_threads
     ))
 
 
