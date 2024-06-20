@@ -33,10 +33,22 @@ fi
 #     --port $PORT \
 #     --shard-uds-path /tmp/text-generation-server.2 \
 #     --max-concurrent-requests 2000
+
+if [ "$num_shard" -ne 1 ]; then
+    echo "used $num_shard  card for inference "
+    export PT_HPU_ENABLE_LAZY_COLLECTIVES=true
+    shard_flag=true
+    echo "shard_flag is $shard_flag"
+else
+    echo "used single card for inference"
+    shard_flag=false
+    echo "shard_flag is $shard_flag"
+fi
+
 TEXT_GENERATION_SERVER_IGNORE_EOS_TOKEN=true \
 text-generation-launcher \
     --model-id $model_name \
-    --sharded false  \
+    --sharded $shard_flag  \
     --huggingface-hub-cache /data/cache \
     --max-input-length ${max_input} \
     --max-total-tokens ${max_total} \
@@ -46,4 +58,6 @@ text-generation-launcher \
     --waiting-served-ratio 1.2 \
     --port 80 \
     --shard-uds-path /tmp/text-generation-server.2 \
-    --max-concurrent-requests $bs
+    --max-concurrent-requests $bs \
+    --num-shard $num_shard
+
