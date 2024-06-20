@@ -46,3 +46,4 @@ text-generation-launcher \
     --waiting-served-ratio 1.2 \
     --port 80 \
     --shard-uds-path /tmp/text-generation-server.2 \
+    --max-concurrent-requests $bs
