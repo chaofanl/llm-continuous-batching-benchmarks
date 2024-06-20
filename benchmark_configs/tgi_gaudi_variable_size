@@ -17,6 +17,8 @@ else
 fi
 
 model_name_dir=$7
+num_shard=$8
+
 results_home=$PWD/result
 mkdir -p ${results_home}
 max_input=$(( random_prompt_lens_mean + prompt_range/2 ))
@@ -39,6 +41,7 @@ function start_model_server {
     max_input=$max_input \
     max_total=$max_total \
     bs=$bs \
+    num_shard=$num_shard \
     ../launch_scripts/launch_tgi_gaudi \
  &
     
@@ -75,7 +78,7 @@ pushd ..
         --allow_variable_generation_length \
         --model_path $model_name_dir \
         --max_num_threads $bs \
-        --results_filename ${results_home}/tgi_gaudi_i${random_prompt_lens_mean}_ir${prompt_range}_o${response_len}_or${response_range}_bs${bs}.log
+        --results_filename ${results_home}/tgi_gaudi_i${random_prompt_lens_mean}_ir${prompt_range}_o${response_len}_or${response_range}_bs${bs}_cn${num_shard}.log
         
 popd
 
