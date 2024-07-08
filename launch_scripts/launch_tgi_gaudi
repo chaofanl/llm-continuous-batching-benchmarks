@@ -45,6 +45,10 @@ else
     echo "shard_flag is $shard_flag"
 fi
 
+export TRUST_REMOTE_CODE=true 
+# export ENABLE_HPU_GRAPH=false
+export LIMIT_HPU_GRAPH=true  # just for baichuan
+# export USE_FLASH_ATTENTION=true
 TEXT_GENERATION_SERVER_IGNORE_EOS_TOKEN=true \
 text-generation-launcher \
     --model-id $model_name \
@@ -59,5 +63,6 @@ text-generation-launcher \
     --port 80 \
     --shard-uds-path /tmp/text-generation-server.2 \
     --max-concurrent-requests $bs \
-    --num-shard $num_shard
+    --num-shard $num_shard \
+    --dtype $dtype
 
