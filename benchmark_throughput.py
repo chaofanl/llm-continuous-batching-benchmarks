@@ -231,7 +231,7 @@ def get_tok_id_lens(tokenizer, batch):
     return lens
 
 
-def calculate_throughput(queries, dur_s, backend, tokenizer, median_token_latency, median_e2e_latency, all_e2e_latencies, all_per_token_latencies, results_filename, log_latencies, fail_on_response_failure):
+def calculate_throughput(queries, dur_s, backend, tokenizer, median_first_token_latency, median_token_latency, median_e2e_latency, all_e2e_latencies, all_per_token_latencies, results_filename, log_latencies, fail_on_response_failure):
     prompts = []
     responses = []
     naive_hf_lens = []
@@ -310,9 +310,10 @@ def calculate_throughput(queries, dur_s, backend, tokenizer, median_token_latenc
     # print(f'throughput_tok_s {throughput_tok_s:.02f}')
     decode_tkn_s = response_token_count / dur_s
     qps = len(responses) / dur_s
+    print("first token latency is :", median_first_token_latency)
 
     with open(results_filename, 'a') as f:
-        msg = f'backend {backend} dur_s {dur_s:.02f} tokens_per_s {throughput_tok_s:.02f} decode_tkn_s {decode_tkn_s:.02f} qps {qps:.02f} successful_responses {len(responses)} prompt_token_count {prompt_token_count} response_token_count {response_token_count}, {median_token_latency=}, {median_e2e_latency=}'
+        msg = f'backend {backend} dur_s {dur_s:.02f} tokens_per_s {throughput_tok_s:.02f} decode_tkn_s {decode_tkn_s:.02f} qps {qps:.02f} successful_responses {len(responses)} prompt_token_count {prompt_token_count} response_token_count {response_token_count}, {median_first_token_latency=}, {median_token_latency=}, {median_e2e_latency=}'
         if log_latencies:
             msg += f' {all_e2e_latencies=} {all_per_token_latencies=}'
         print(msg, file=f)
@@ -335,6 +336,7 @@ class MeasureLatency:
     def __init__(self):
         self._latencies = []
         self._per_token_latencies = []
+        self._first_token_latencies = []
 
     def measure(self, f):
         async def measured(*args, **kwargs):
@@ -351,6 +353,12 @@ class MeasureLatency:
                 except ZeroDivisionError:
                     # Not currently using this metric..
                     pass
+                
+                # Record first token latency if available.
+                if 'prefill' in output:
+                    print("first +++++++++++++++++++")
+                    first_token_latency = output['prefill'] - start
+                    self._first_token_latencies.append(first_token_latency)
 
             return prompt, output
         return measured
@@ -421,8 +429,9 @@ async def benchmark(
 
     median_token_latency = np.median(m._per_token_latencies)
     median_e2e_latency = np.median(m._latencies)
+    median_first_token_latency = np.median(m._first_token_latencies)
 
-    calculate_throughput(queries, dur_s, backend, tokenizer, median_token_latency, median_e2e_latency,
+    calculate_throughput(queries, dur_s, backend, tokenizer, median_first_token_latency, median_token_latency, median_e2e_latency,
                          m._latencies, m._per_token_latencies, results_filename, log_latencies, fail_on_response_failure)
     calculate_cdf(m._latencies)
 
