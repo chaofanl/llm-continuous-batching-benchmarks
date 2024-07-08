@@ -20,16 +20,29 @@ if [ -z ${CUDA_VISIBLE_DEVICES+x} ]; then
     exit 1
 fi
 
+if [ "$num_shard" -ne 1 ]; then
+    echo "used $num_shard  card for inference "
+    shard_flag=true
+    echo "shard_flag is $shard_flag"
+else
+    echo "used single card for inference"
+    shard_flag=false
+    echo "shard_flag is $shard_flag"
+fi
+
 ulimit -n 65536 && TEXT_GENERATION_SERVER_IGNORE_EOS_TOKEN=true \
     text-generation-launcher \
     --model-id $model_name \
-    --sharded false  \
+    --sharded $shard_flag  \
     --huggingface-hub-cache /data/cache \
-    --max-input-length 1024 \
-    --max-total-tokens 2048 \
-    --max-batch-total-tokens $max_batch_total_tokens \
-    --max-waiting-tokens 7 \
+    --max-input-length ${max_input} \
+    --max-total-tokens ${max_total} \
+    --max-waiting-tokens 20 \
+    --max-batch-prefill-tokens 2048 \
+    --max-batch-total-tokens ${max_batch_total_tokens} \
     --waiting-served-ratio 1.2 \
     --port $PORT \
     --shard-uds-path /tmp/text-generation-server.2 \
-    --max-concurrent-requests 2000
+    --max-concurrent-requests $bs \
+    --num-shard $num_shard \
+    --dtype $dtype
